@@ -72,18 +72,19 @@ def buildWall(length, height, primary_brick_type, window_size, window_spacing, d
     wall_loc = 0
     wall_list = []
     front_doors_left = num_front_doors
-    door_buffer = 1 # Buffer space before placing a door
+    door_buffer = 2 # Buffer space before placing a door
     door_spacing = length / (num_front_doors + 1) if num_front_doors > 0 else 0
     print(f"door_size: {door_size}, window_size: {window_size}, window_spacing: {window_spacing}")
     while (wall_loc < length):
         print(f"Current wall location: {wall_loc}")
-        if (front_doors_left > 0 and (wall_loc % door_spacing) == 0):
+        if (front_doors_left > 0 and ((wall_loc - door_buffer) % door_spacing) < door_size.value[0]):
             # Place a door
             print(f"    Placing door at position {wall_loc}")
             wall_list.append(("door", wall_loc))
             wall_loc += door_size.value[0]
             front_doors_left -= 1
-        elif ((window_size.value[0] > 0 and window_size.value[1] > 0) and (wall_loc - window_spacing.value) % (window_size.value[0] + window_spacing.value) == 0):
+        elif ((window_size.value[0] > 0 and window_size.value[1] > 0) and 
+              (wall_loc - window_spacing.value/2) % (window_size.value[0] + window_spacing.value) < window_size.value[0]):
             # Place a window
             print(f"    Placing window at position {wall_loc}")
             wall_list.append(("window", wall_loc))
