@@ -68,7 +68,8 @@ def buildWall(length, height, primary_brick_type, window_size, window_spacing, d
           f"Door size: {door_size}, Number of front doors: {num_front_doors}")
     
     brick_len = 2 # Assuming each brick has a length of 2 units
-    # Here you would implement the actual wall building logic
+    
+    # Build the wall
     wall_loc = 0
     wall_list = []
     front_doors_left = num_front_doors
@@ -103,7 +104,7 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
     Generate a building based on the provided LegoBuildingConfig.
     If random is True, apply randomness to the parameters.
     """
-    # Here you would implement the logic to generate the building
+    
     # For now, just print the config
     print(f"Generating building with config: {config}")
     if random:
