@@ -17,9 +17,9 @@ class ParamWithRandom:
 
 @dataclass
 class LegoBuildingConfig:
-    length: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(0))
-    width: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(0))
-    height: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(0))
+    length: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(20))
+    width: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(15))
+    height: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(8))
     window_size: ParamWithRandom = field(default_factory=lambda: ParamWithRandom((0, 0)))
     window_spacing: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(0))
     door_size: ParamWithRandom = field(default_factory=lambda: ParamWithRandom((0, 0)))
@@ -57,43 +57,63 @@ def createLegoBuildingConfig(config: dict) -> 'LegoBuildingConfig':
                 kwargs[field_name] = param_with_random_from_dict(config[field_name])
     return LegoBuildingConfig(**kwargs)
 
-def buildWall(length, height, primary_brick_type, window_size, window_spacing, door_size, num_front_doors):
+def buildWall(length, height, primary_brick_type, window_size, window_spacing, door_size, num_doors):
     """
-    Placeholder function to build a wall.
-    This would contain the logic to create a wall with windows and doors.
+    Build a wall with windows and doors. The wall is built from left to right. 
+
+    Doors are placed on the wall with a buffer from the corner, and max 2 doors. 
+    Windows are placed spaced evenly across the wall, avoiding the doors. 
+    The primary brick type is used for the wall, with smaller bricks to fill in 
+    gaps for doors and windows.
     """
     print(f"Building wall of length {length}, height {height}, "
           f"with primary brick type {primary_brick_type}.")
     print(f"Window size: {window_size}, Window spacing: {window_spacing}, "
-          f"Door size: {door_size}, Number of front doors: {num_front_doors}")
+          f"Door size: {door_size}, Number of front doors: {num_doors}")
     
     brick_len = 2 # Assuming each brick has a length of 2 units
+    window_base = 2 # The base row for windows
     
     # Build the wall
-    wall_loc = 0
     wall_list = []
-    front_doors_left = num_front_doors
-    door_buffer = 2 # Buffer space before placing a door
-    door_spacing = length / (num_front_doors + 1) if num_front_doors > 0 else 0
-    print(f"door_size: {door_size}, window_size: {window_size}, window_spacing: {window_spacing}")
-    while (wall_loc < length):
-        print(f"Current wall location: {wall_loc}")
-        if (front_doors_left > 0 and ((wall_loc - door_buffer) % door_spacing) < door_size.value[0]):
-            # Place a door
-            print(f"    Placing door at position {wall_loc}")
-            wall_list.append(("door", wall_loc))
-            wall_loc += door_size.value[0]
-            front_doors_left -= 1
-        elif ((window_size.value[0] > 0 and window_size.value[1] > 0) and 
-              (wall_loc - window_spacing.value/2) % (window_size.value[0] + window_spacing.value) < window_size.value[0]):
-            # Place a window
-            print(f"    Placing window at position {wall_loc}")
-            wall_list.append(("window", wall_loc))
-            wall_loc += window_size.value[0]
-        else: # Place a brick
-            print
-            wall_list.append(("brick", wall_loc))
-            wall_loc += brick_len
+    wall_loc = 0
+    
+    # Create rows of bricks, windows, and doors, starting from the bottom
+    # the door and window heights and widths are used to deterministically
+    # place them across the wall. For rows below the window base, no
+    # windows are placed. For rows above the window base, and below the 
+    # door height, both windows and doors are placed. For rows above the
+    # door height, only windows are placed.
+    for row in range(height):
+        row_list = []
+        front_doors_left = num_doors
+        door_buffer = 4 # Buffer space before placing a door
+        door_spacing = (float(length) / (float(num_doors))) if num_doors > 0 else 0.0
+        place_doors = (door_spacing > 0) and (door_size.value[0] > 0) and (door_size.value[1] > 0) and (row < door_size.value[1])
+        place_windows = (window_size.value[0] > 0) and (window_size.value[1] > 0) and (row >= window_base) and (row < (window_base + window_size.value[1]))
+        # print(f"door_size: {door_size}, window_size: {window_size}, window_spacing: {window_spacing}")
+        wall_loc = 0
+        while wall_loc < length:
+            # print(f"Current wall location: {wall_loc}")
+            door_start = place_doors and (((wall_loc - door_buffer) % door_spacing) == 0)
+            place_window = place_windows and (float(wall_loc - window_spacing.value/2) % float(window_size.value[0] + window_spacing.value) == 0)
+            if (place_doors and (front_doors_left > 0) and door_start):
+                # Place a door
+                print(f"    Placing door at position {wall_loc}")
+                row_list.append(("door", wall_loc))
+                wall_loc += door_size.value[0]
+                front_doors_left -= 1
+            elif (place_windows and place_window):
+                # Place a window
+                print(f"    Placing window at position {wall_loc}")
+                row_list.append(("window", wall_loc))
+                wall_loc += window_size.value[0]
+            else: # Place a brick
+                print
+                row_list.append(("brick", wall_loc))
+                wall_loc += brick_len
+
+        wall_list.append(row_list)
 
     print(f"Wall built: {wall_list}")
 
@@ -119,6 +139,7 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
 
     ## Build Front Wall
     num_front_doors = math.ceil(config.number_of_doors.value / 4)
+    print("Front Wall:")
     front_wall = buildWall(
         config.length.value,
         config.height.value,
@@ -127,6 +148,45 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
         config.window_spacing,
         config.door_size,
         num_front_doors
+    )
+
+    ## Build Back Wall
+    num_back_doors = math.ceil((config.number_of_doors.value - num_front_doors) / 3)
+    print("Back Wall:")
+    back_wall = buildWall(
+        config.length.value,
+        config.height.value,
+        config.primary_brick_type,
+        config.window_size,
+        config.window_spacing,
+        config.door_size,   
+        num_back_doors
+    )
+
+    ## Build Left Wall
+    num_left_doors = math.ceil((config.number_of_doors.value - num_front_doors - num_back_doors) / 2)
+    print("Left Wall:")
+    left_wall = buildWall(
+        config.width.value,
+        config.height.value,
+        config.primary_brick_type,
+        config.window_size,
+        config.window_spacing,
+        config.door_size,
+        num_left_doors
+    )
+
+    ## Build Right Wall
+    num_right_doors = math.ceil((config.number_of_doors.value - num_front_doors - num_back_doors - num_left_doors) / 2)
+    print("Right Wall:")
+    right_wall = buildWall(
+        config.width.value,
+        config.height.value,
+        config.primary_brick_type,
+        config.window_size,
+        config.window_spacing,
+        config.door_size,
+        num_right_doors
     )
 
 def create_parser():
