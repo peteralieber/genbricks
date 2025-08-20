@@ -1,4 +1,4 @@
-width: 120
-length: 160
-door_size: [2,4]
-number_of_doors: 1
+width: 24
+length: 16
+door_size: [4,6]
+number_of_doors: 5
