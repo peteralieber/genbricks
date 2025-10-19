@@ -170,21 +170,14 @@ The system distributes doors across four walls using a ceiling division strategy
 
 ```
 total_doors = config.number_of_doors.value
-remaining_doors = total_doors
 
-1. Front wall:  ⌈remaining_doors / 4⌉
-   remaining_doors -= front_doors
-
-2. Back wall:   ⌈remaining_doors / 3⌉
-   remaining_doors -= back_doors
-
-3. Left wall:   ⌈remaining_doors / 2⌉
-   remaining_doors -= left_doors
-
-4. Right wall:  remaining_doors  (all remaining doors)
+1. Front wall:  ⌈total_doors / 4⌉
+2. Back wall:   ⌈(total_doors - front_doors) / 3⌉
+3. Left wall:   ⌈(total_doors - front_doors - back_doors) / 2⌉  
+4. Right wall:  ⌈(total_doors - front_doors - back_doors - left_doors) / 2⌉
 ```
 
-**Rationale**: This algorithm distributes doors proportionally across remaining walls, ensuring all doors are placed. Each wall gets approximately (remaining_doors / remaining_walls), with the ceiling function ensuring no doors are lost to rounding.
+**Rationale**: This algorithm distributes doors across walls with each remaining wall getting approximately (remaining_doors / remaining_walls), using ceiling division to handle fractional doors. This ensures all doors are distributed even with rounding.
 
 #### 3. Wall Building Algorithm
 
@@ -236,27 +229,25 @@ Starting from `wall_loc = 0`, increment by element width:
 
 ```python
 while wall_loc < length:
-    # Check for door placement
-    # Doors are placed at positions that align with the door_spacing,
-    # starting after the door_buffer
-    door_start = place_doors AND ((wall_loc - door_buffer) % door_spacing) == 0
+    # Calculate if a door should start at this position
+    # (position after buffer, aligned with door spacing)
+    door_start = place_doors and (((wall_loc - door_buffer) % door_spacing) == 0)
     
-    if place_doors AND doors_remaining > 0 AND door_start:
+    # Priority 1: Place door if conditions are met
+    if place_doors and (doors_remaining > 0) and door_start:
         place_door()
         wall_loc += door_size.width
         doors_remaining -= 1
     
-    # Check for window placement
-    # Windows are placed at positions based on window cycle (size + spacing)
-    # Starting at window_spacing/2 offset
-    place_window = place_windows AND \
-                   (float(wall_loc - window_spacing/2) % float(window_cycle) == 0)
-    
-    elif place_window:
+    # Priority 2: Place window if aligned with window cycle
+    # Window positions start at window_spacing/2 offset
+    # and repeat every (window_size.width + window_spacing) units
+    elif place_windows and \
+         (float(wall_loc - window_spacing/2) % float(window_size.width + window_spacing) == 0):
         place_window()
         wall_loc += window_size.width
     
-    # Default: place brick
+    # Priority 3: Fill with brick
     else:
         place_brick()
         wall_loc += brick_len
