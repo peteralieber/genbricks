@@ -170,14 +170,21 @@ The system distributes doors across four walls using a ceiling division strategy
 
 ```
 total_doors = config.number_of_doors.value
+remaining_doors = total_doors
 
-1. Front wall:  ⌈total_doors / 4⌉
-2. Back wall:   ⌈(total_doors - front_doors) / 3⌉
-3. Left wall:   ⌈(total_doors - front_doors - back_doors) / 2⌉
-4. Right wall:  ⌈(total_doors - front_doors - back_doors - left_doors) / 2⌉
+1. Front wall:  ⌈remaining_doors / 4⌉
+   remaining_doors -= front_doors
+
+2. Back wall:   ⌈remaining_doors / 3⌉
+   remaining_doors -= back_doors
+
+3. Left wall:   ⌈remaining_doors / 2⌉
+   remaining_doors -= left_doors
+
+4. Right wall:  remaining_doors  (all remaining doors)
 ```
 
-**Rationale**: This algorithm prioritizes the front wall and ensures all doors are distributed, with rounding errors accumulated in the final walls.
+**Rationale**: This algorithm distributes doors proportionally across remaining walls, ensuring all doors are placed. Each wall gets approximately (remaining_doors / remaining_walls), with the ceiling function ensuring no doors are lost to rounding.
 
 #### 3. Wall Building Algorithm
 
@@ -230,7 +237,9 @@ Starting from `wall_loc = 0`, increment by element width:
 ```python
 while wall_loc < length:
     # Check for door placement
-    door_start = ((wall_loc - door_buffer) % door_spacing) == 0
+    # Doors are placed at positions that align with the door_spacing,
+    # starting after the door_buffer
+    door_start = place_doors AND ((wall_loc - door_buffer) % door_spacing) == 0
     
     if place_doors AND doors_remaining > 0 AND door_start:
         place_door()
@@ -238,7 +247,12 @@ while wall_loc < length:
         doors_remaining -= 1
     
     # Check for window placement
-    elif place_windows AND ((wall_loc - window_spacing/2) % window_cycle) == 0:
+    # Windows are placed at positions based on window cycle (size + spacing)
+    # Starting at window_spacing/2 offset
+    place_window = place_windows AND \
+                   (float(wall_loc - window_spacing/2) % float(window_cycle) == 0)
+    
+    elif place_window:
         place_window()
         wall_loc += window_size.width
     
@@ -260,19 +274,21 @@ while wall_loc < length:
 
 **Door Position Calculation**:
 ```
-door_positions = [door_buffer + i * door_spacing for i in range(num_doors)]
+door_spacing = length / num_doors  (when num_doors > 0)
+door_positions = positions where (position - door_buffer) % door_spacing == 0
+                 AND position >= door_buffer
+                 AND doors_remaining > 0
 ```
+
+The actual door positions depend on the iteration through wall_loc, checking at each brick position if it aligns with the door spacing pattern.
 
 **Window Position Calculation**:
 ```
-window_positions = [window_spacing/2 + i * (window_size.width + window_spacing) 
-                    for i in range(num_windows)]
+window_cycle = window_size.width + window_spacing
+window_positions = positions where (position - window_spacing/2) % window_cycle == 0
 ```
 
-Where:
-```
-num_windows = floor((length - window_spacing) / (window_size.width + window_spacing))
-```
+The modulo arithmetic ensures windows repeat at regular intervals across the wall length.
 
 ---
 
@@ -685,7 +701,7 @@ This white paper serves as both documentation of the current system and a roadma
 
 ## Document Version History
 
-- **Version 1.0** (2025-10-19): Initial algorithm white paper creation
+- **Version 1.0** (Initial Release): Initial algorithm white paper creation
   - Complete documentation of existing system
   - Analysis of code structure and goals
   - Extension points and development guidelines
