@@ -1,8 +1,13 @@
 import argparse
 import yaml
 from dataclasses import dataclass, field
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 import math
+import random
+from ldraw_generator import (
+    LDrawModel, BuildingGenerator, LDrawColor, BrickType,
+    convert_wall_to_ldraw
+)
 
 @dataclass
 class RandomSetting:
@@ -20,11 +25,19 @@ class LegoBuildingConfig:
     length: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(20))
     width: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(15))
     height: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(8))
-    window_size: ParamWithRandom = field(default_factory=lambda: ParamWithRandom((0, 0)))
-    window_spacing: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(0))
-    door_size: ParamWithRandom = field(default_factory=lambda: ParamWithRandom((0, 0)))
-    number_of_doors: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(0))
+    window_size: ParamWithRandom = field(default_factory=lambda: ParamWithRandom((2, 2)))
+    window_spacing: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(2))
+    door_size: ParamWithRandom = field(default_factory=lambda: ParamWithRandom((2, 3)))
+    number_of_doors: ParamWithRandom = field(default_factory=lambda: ParamWithRandom(1))
     primary_brick_type: str = ""  # BrickLink part id
+    # Enhanced parameters
+    wall_color: str = "dark_gray"  # Color name or code
+    roof_type: str = "flat"  # flat, pitched, complex
+    roof_color: str = "dark_red"
+    num_floors: int = 1
+    floor_height: int = 8  # Height per floor in bricks
+    output_file: str = "building.ldr"  # Output filename
+    architectural_style: str = "simple"  # simple, detailed, modern
 
 def createLegoBuildingConfig(config: dict) -> 'LegoBuildingConfig':
     """
@@ -47,8 +60,12 @@ def createLegoBuildingConfig(config: dict) -> 'LegoBuildingConfig':
 
     # Prepare kwargs for LegoBuildingConfig
     kwargs = {}
+    non_param_fields = ["primary_brick_type", "wall_color", "roof_type", 
+                        "roof_color", "num_floors", "floor_height", 
+                        "output_file", "architectural_style"]
+    
     for field_name in LegoBuildingConfig.__dataclass_fields__:
-        if field_name == "primary_brick_type":
+        if field_name in non_param_fields:
             # Not a ParamWithRandom, just assign directly
             if field_name in config:
                 kwargs[field_name] = config[field_name]
@@ -123,6 +140,7 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
     """
     Generate a building based on the provided LegoBuildingConfig.
     If random is True, apply randomness to the parameters.
+    Returns the LDRAW model.
     """
     
     # For now, just print the config
@@ -131,6 +149,10 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
         print("Random generation enabled.")
     else:
         print("Random generation disabled.")
+
+    # Apply randomization if enabled
+    if random:
+        apply_randomization(config)
 
     # Generate placement of windows and doors based on the config
     print(f"Length: {config.length.value}, Width: {config.width.value}, Height: {config.height.value}")
@@ -177,7 +199,7 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
     )
 
     ## Build Right Wall
-    num_right_doors = math.ceil((config.number_of_doors.value - num_front_doors - num_back_doors - num_left_doors) / 2)
+    num_right_doors = config.number_of_doors.value - num_front_doors - num_back_doors - num_left_doors
     print("Right Wall:")
     right_wall = buildWall(
         config.width.value,
@@ -188,6 +210,197 @@ def generateSotBuilding(config: LegoBuildingConfig, random: bool = False):
         config.door_size,
         num_right_doors
     )
+    
+    # Convert to LDRAW format
+    print("\n=== Converting to LDRAW format ===")
+    ldraw_model = convert_to_ldraw(config, front_wall, back_wall, left_wall, right_wall)
+    
+    # Save the model
+    output_file = config.output_file
+    ldraw_model.save(output_file)
+    print(f"\n✓ Building saved to: {output_file}")
+    print(f"  Total bricks: {len(ldraw_model.bricks)}")
+    
+    return ldraw_model
+
+
+def apply_randomization(config: LegoBuildingConfig):
+    """Apply randomization to config parameters based on their random settings"""
+    def randomize_param(param: ParamWithRandom):
+        if not param.random.enabled:
+            return
+        
+        if param.random.range:
+            min_val, max_val = param.random.range
+            if isinstance(param.value, tuple):
+                # Randomize tuple values
+                randomized = tuple(
+                    int(random.uniform(min_val, max_val)) 
+                    for _ in range(len(param.value))
+                )
+                param.value = randomized
+            elif isinstance(param.value, list):
+                # Randomize list values
+                randomized = [
+                    int(random.uniform(min_val, max_val)) 
+                    for _ in range(len(param.value))
+                ]
+                param.value = randomized
+            else:
+                # Integer randomization for studs/bricks
+                param.value = int(random.uniform(min_val, max_val))
+        else:
+            # Apply strength-based randomization
+            if isinstance(param.value, (int, float)):
+                variation = param.value * param.random.strength
+                param.value = int(param.value + random.uniform(-variation, variation))
+    
+    # Randomize all parameters
+    randomize_param(config.length)
+    randomize_param(config.width)
+    randomize_param(config.height)
+    randomize_param(config.window_size)
+    randomize_param(config.window_spacing)
+    randomize_param(config.door_size)
+    randomize_param(config.number_of_doors)
+
+
+def get_color_code(color_name: str) -> int:
+    """Convert color name to LDRAW color code"""
+    color_map = {
+        'black': LDrawColor.BLACK.value,
+        'blue': LDrawColor.BLUE.value,
+        'green': LDrawColor.GREEN.value,
+        'red': LDrawColor.RED.value,
+        'dark_red': LDrawColor.DARK_RED.value,
+        'yellow': LDrawColor.YELLOW.value,
+        'white': LDrawColor.WHITE.value,
+        'light_gray': LDrawColor.LIGHT_GRAY.value,
+        'dark_gray': LDrawColor.DARK_GRAY.value,
+        'brown': LDrawColor.BROWN.value,
+        'tan': LDrawColor.TAN.value,
+        'dark_tan': LDrawColor.DARK_TAN.value,
+    }
+    return color_map.get(color_name.lower(), LDrawColor.DARK_GRAY.value)
+
+
+def convert_to_ldraw(config: LegoBuildingConfig, 
+                     front_wall, back_wall, left_wall, right_wall) -> LDrawModel:
+    """
+    Convert the building specification to LDRAW format
+    
+    Args:
+        config: Building configuration
+        front_wall, back_wall, left_wall, right_wall: Wall data structures
+    
+    Returns:
+        LDrawModel instance
+    """
+    model = LDrawModel(
+        name="Procedural Building",
+        description=f"Generated building {config.length.value}x{config.width.value}x{config.height.value}"
+    )
+    
+    generator = BuildingGenerator(model)
+    wall_color = get_color_code(config.wall_color)
+    roof_color = get_color_code(config.roof_color)
+    
+    # Calculate building dimensions in studs
+    length_studs = config.length.value
+    width_studs = config.width.value
+    height_bricks = config.height.value
+    
+    # Starting position (center the building at origin)
+    base_x = -LDrawModel.studs_to_ldu(length_studs) / 2
+    base_y = 0
+    base_z = -LDrawModel.studs_to_ldu(width_studs) / 2
+    
+    print(f"Building dimensions: {length_studs}x{width_studs} studs, {height_bricks} bricks high")
+    print(f"Wall color: {config.wall_color} (code: {wall_color})")
+    
+    # Build walls with openings extracted from wall data
+    print("Converting front wall...")
+    front_openings = extract_openings(front_wall, config)
+    generator.build_wall(
+        base_x, base_y, base_z,
+        length_studs, height_bricks, wall_color,
+        direction='x', openings=front_openings
+    )
+    
+    print("Converting back wall...")
+    back_openings = extract_openings(back_wall, config)
+    back_z = base_z + LDrawModel.studs_to_ldu(width_studs)
+    generator.build_wall(
+        base_x, base_y, back_z,
+        length_studs, height_bricks, wall_color,
+        direction='x', openings=back_openings
+    )
+    
+    print("Converting left wall...")
+    left_openings = extract_openings(left_wall, config)
+    generator.build_wall(
+        base_x, base_y, base_z,
+        width_studs, height_bricks, wall_color,
+        direction='z', openings=left_openings
+    )
+    
+    print("Converting right wall...")
+    right_openings = extract_openings(right_wall, config)
+    right_x = base_x + LDrawModel.studs_to_ldu(length_studs)
+    generator.build_wall(
+        right_x, base_y, base_z,
+        width_studs, height_bricks, wall_color,
+        direction='z', openings=right_openings
+    )
+    
+    # Build roof
+    print(f"Building {config.roof_type} roof...")
+    roof_y = base_y - (height_bricks * LDrawModel.BRICK_HEIGHT)
+    generator.build_roof(
+        base_x, roof_y, base_z,
+        width_studs, length_studs, 
+        config.roof_type, roof_color
+    )
+    
+    return model
+
+
+def extract_openings(wall_data: List[List[Tuple]], config: LegoBuildingConfig) -> List[dict]:
+    """Extract door and window positions from wall data"""
+    openings = []
+    
+    # Track openings we've already added
+    seen_openings = set()
+    
+    for row_idx, row in enumerate(wall_data):
+        for item_type, position in row:
+            if item_type in ['door', 'window']:
+                # Convert position to studs
+                position_studs = position // 2
+                
+                # Create unique key for this opening
+                opening_key = (item_type, position_studs)
+                
+                if opening_key not in seen_openings:
+                    seen_openings.add(opening_key)
+                    
+                    # Determine opening dimensions
+                    if item_type == 'door':
+                        width = config.door_size.value[0] // 2
+                        height = config.door_size.value[1]
+                    else:  # window
+                        width = config.window_size.value[0] // 2
+                        height = config.window_size.value[1]
+                    
+                    openings.append({
+                        'type': item_type,
+                        'position': position_studs,
+                        'width': width,
+                        'height': height,
+                        'start_row': row_idx
+                    })
+    
+    return openings
 
 def create_parser():
     parser = argparse.ArgumentParser(description="Gen Bricks.")

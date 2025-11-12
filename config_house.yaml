@@ -1,0 +1,29 @@
+# Simple house configuration with randomization
+width: 20
+length: 16
+height: 10
+
+window_size: [2, 2]
+window_spacing: 4
+door_size: [2, 3]
+number_of_doors: 1
+
+wall_color: "white"
+roof_color: "dark_red"
+roof_type: "pitched"
+
+output_file: "house.ldr"
+
+# Enable randomization for variety
+# Uncomment to test randomization
+# width:
+#   value: 20
+#   random:
+#     enabled: true
+#     range: [18, 24]
+# 
+# length:
+#   value: 16
+#   random:
+#     enabled: true
+#     range: [14, 20]
