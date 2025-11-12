@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# GenBricks generated files
+*.ldr
+*.mpd
+ldraw_spec.md
+
 # Distribution / packaging
 .Python
 build/

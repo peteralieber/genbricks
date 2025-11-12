@@ -1,0 +1,43 @@
+# GenBricks Advanced Configuration Example
+# This demonstrates advanced features and randomization
+
+# Building base dimensions (in studs)
+width: 32
+length: 24
+height: 12  # Height in bricks
+
+# Window configuration
+window_size: [2, 2]  # [width, height] in studs
+window_spacing: 3  # Spacing between windows in studs
+
+# Door configuration
+door_size: [2, 4]  # [width, height] - width in studs, height in bricks
+number_of_doors: 1
+
+# Colors
+wall_color: "tan"
+roof_color: "dark_red"
+
+# Roof configuration
+roof_type: "pitched"  # Options: flat, pitched, complex
+
+# Advanced settings
+num_floors: 2
+floor_height: 6  # Bricks per floor
+architectural_style: "detailed"
+
+# Output settings
+output_file: "advanced_building.ldr"
+
+# Optional: Randomization examples
+# length:
+#   value: 24
+#   random:
+#     enabled: true
+#     range: [20, 30]
+# 
+# width:
+#   value: 32
+#   random:
+#     enabled: true
+#     range: [28, 36]

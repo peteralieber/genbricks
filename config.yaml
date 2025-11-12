@@ -1,4 +1,39 @@
+# GenBricks Configuration File
+# All dimensions are in studs unless otherwise specified
+
+# Building base dimensions (in studs)
 width: 24
 length: 16
-door_size: [4,6]
-number_of_doors: 5
+height: 8  # Height in bricks
+
+# Window configuration
+window_size: [2, 2]  # [width, height] in studs
+window_spacing: 4  # Spacing between windows in studs
+
+# Door configuration
+door_size: [2, 3]  # [width, height] - width in studs, height in bricks
+number_of_doors: 2
+
+# Colors (color names: black, blue, green, red, dark_red, yellow, white, light_gray, dark_gray, brown, tan, dark_tan)
+wall_color: "light_gray"
+roof_color: "dark_red"
+
+# Roof configuration
+roof_type: "flat"  # Options: flat, pitched, complex
+
+# Advanced settings
+num_floors: 1
+floor_height: 8  # Bricks per floor
+architectural_style: "simple"  # simple, detailed, modern
+
+# Output settings
+output_file: "building.ldr"
+
+# Randomization (optional)
+# Uncomment and configure to enable randomization
+# length:
+#   value: 16
+#   random:
+#     enabled: true
+#     strength: 0.2
+#     range: [12, 20]
