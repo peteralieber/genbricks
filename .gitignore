@@ -10,6 +10,7 @@ __pycache__/
 *.ldr
 *.mpd
 ldraw_spec.md
+test_ldraw_output.py
 
 # Distribution / packaging
 .Python

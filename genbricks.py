@@ -235,17 +235,25 @@ def apply_randomization(config: LegoBuildingConfig):
             if isinstance(param.value, tuple):
                 # Randomize tuple values
                 randomized = tuple(
-                    random.uniform(min_val, max_val) 
+                    int(random.uniform(min_val, max_val)) 
                     for _ in range(len(param.value))
                 )
                 param.value = randomized
+            elif isinstance(param.value, list):
+                # Randomize list values
+                randomized = [
+                    int(random.uniform(min_val, max_val)) 
+                    for _ in range(len(param.value))
+                ]
+                param.value = randomized
             else:
-                param.value = random.uniform(min_val, max_val)
+                # Integer randomization for studs/bricks
+                param.value = int(random.uniform(min_val, max_val))
         else:
             # Apply strength-based randomization
             if isinstance(param.value, (int, float)):
                 variation = param.value * param.random.strength
-                param.value = param.value + random.uniform(-variation, variation)
+                param.value = int(param.value + random.uniform(-variation, variation))
     
     # Randomize all parameters
     randomize_param(config.length)
